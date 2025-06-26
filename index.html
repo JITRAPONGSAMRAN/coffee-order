@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
-<title>ระบบออเดอร์กาแฟ</title>
+<title>Coffee House</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <!-- PWA Manifest -->
@@ -29,14 +29,14 @@
 </head>
 <body>
 
-<h2>☕ ระบบออเดอร์กาแฟ</h2>
+<h2>☕ Coffee House</h2>
 
-<label>ชื่อผู้สั่ง:</label>
+<label>Name:</label>
 <input id="nameInput" type="text" list="nameList" placeholder="เริ่มพิมพ์ชื่อ..." autocomplete="off" />
 <datalist id="nameList"></datalist>
 <div id="lastMenu"></div>
 
-<label>เมนูกาแฟ:</label>
+<label>Order:</label>
 <select id="menuInput">
   <option>A5</option>
   <option>A4.5</option>
@@ -46,42 +46,42 @@
   <option>Cold Brew</option>
 </select>
 
-<label>ไซรัป (กรัม):</label>
+<label>Syrup (G):</label>
 <select id="syrupInput">
-  <option value="">-- ไม่ใส่ --</option>
+  <option value="">-- No --</option>
   <option>5</option>
   <option>10</option>
   <option>15</option>
   <option>20</option>
 </select>
 
-<label>น้ำผึ้ง (กรัม):</label>
+<label>Honey (G):</label>
 <select id="honeyInput">
-  <option value="">-- ไม่ใส่ --</option>
+  <option value="">-- No --</option>
   <option>5</option>
   <option>10</option>
   <option>15</option>
   <option>20</option>
 </select>
 
-<button onclick="copyYesterday()">📅 คัดลอกออเดอร์เมื่อวาน</button>
+<button onclick="copyYesterday()">📅 Copy last order</button>
 <button onclick="exportPDF()">📤 Export PDF</button>
-<button onclick="clearOrders()">🗑️ ล้างทั้งหมด</button>
+<button onclick="clearOrders()">🗑️ clear</button>
 
-<h3>📋 รายการออเดอร์</h3>
+<h3>📋 Detail Order</h3>
 <table>
 <thead>
 <tr>
-  <th>ชื่อ</th>
-  <th>เมนู</th>
-  <th>ส่วนผสม</th>
-  <th>แก้ไข</th>
+  <th>Name</th>
+  <th>order</th>
+  <th>Fill</th>
+  <th>Edit</th>
 </tr>
 </thead>
 <tbody id="orderTable"></tbody>
 </table>
 
-<h3>📊 สรุปยอด</h3>
+<h3>📊 summary order</h3>
 <div id="summaryOutput"></div>
 
 <script>
@@ -151,7 +151,7 @@ function renderOrders() {
       <td>${o.name}</td>
       <td>${o.menu}</td>
       <td>${o.mix}</td>
-      <td><button onclick="editOrder(${i})">แก้ไข</button></td>
+      <td><button onclick="editOrder(${i})">Edit</button></td>
     </tr>`;
   });
   summarizeOrders();
@@ -180,7 +180,7 @@ function editOrder(index) {
 }
 
 function clearOrders() {
-  if (confirm("ต้องการล้างทั้งหมด?")) {
+  if (confirm("ต้องการclear?")) {
     orders = [];
     saveData();
     renderOrders();
