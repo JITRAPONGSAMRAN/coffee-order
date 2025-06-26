@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>ระบบออเดอร์กาแฟ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json" />
+<!-- Favicon / Icon -->
+<link rel="shortcut icon" href="icon-192.png" type="image/png" />
+<meta name="theme-color" content="#6b4f2d" />
+
+<!-- jsPDF CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  body { font-family: sans-serif; background: #f0f0f0; padding: 20px; max-width: 800px; margin: auto; }
+  h2 { background: #6b4f2d; color: #fff; padding: 10px; border-radius: 8px; text-align: center; }
+  label { margin-top: 10px; display: block; }
+  input, select { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; }
+  button { background: #6b4f2d; color: white; padding: 10px 20px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; }
+  button:hover { background: #543c22; }
+  table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
+  th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+  th { background: #ddd; }
+  #lastMenu { background: #e0ffe0; padding: 10px; margin: 10px 0; border-left: 4px solid green; display: none; }
+</style>
+</head>
+<body>
+
+<h2>☕ ระบบออเดอร์กาแฟ</h2>
+
+<label>ชื่อผู้สั่ง:</label>
+<input id="nameInput" type="text" list="nameList" placeholder="เริ่มพิมพ์ชื่อ..." autocomplete="off" />
+<datalist id="nameList"></datalist>
+<div id="lastMenu"></div>
+
+<label>เมนูกาแฟ:</label>
+<select id="menuInput">
+  <option>A5</option>
+  <option>A4.5</option>
+  <option>A5+A4.5</option>
+  <option>มัจฉะลาเต้</option>
+  <option>เพียวมัจฉะ</option>
+  <option>Cold Brew</option>
+</select>
+
+<label>ไซรัป (กรัม):</label>
+<select id="syrupInput">
+  <option value="">-- ไม่ใส่ --</option>
+  <option>5</option>
+  <option>10</option>
+  <option>15</option>
+  <option>20</option>
+</select>
+
+<label>น้ำผึ้ง (กรัม):</label>
+<select id="honeyInput">
+  <option value="">-- ไม่ใส่ --</option>
+  <option>5</option>
+  <option>10</option>
+  <option>15</option>
+  <option>20</option>
+</select>
+
+<button onclick="copyYesterday()">📅 คัดลอกออเดอร์เมื่อวาน</button>
+<button onclick="exportPDF()">📤 Export PDF</button>
+<button onclick="clearOrders()">🗑️ ล้างทั้งหมด</button>
+
+<h3>📋 รายการออเดอร์</h3>
+<table>
+<thead>
+<tr>
+  <th>ชื่อ</th>
+  <th>เมนู</th>
+  <th>ส่วนผสม</th>
+  <th>แก้ไข</th>
+</tr>
+</thead>
+<tbody id="orderTable"></tbody>
+</table>
+
+<h3>📊 สรุปยอด</h3>
+<div id="summaryOutput"></div>
+
+<script>
+const nameInput = document.getElementById('nameInput');
+const nameList = document.getElementById('nameList');
+const menuInput = document.getElementById('menuInput');
+const syrupInput = document.getElementById('syrupInput');
+const honeyInput = document.getElementById('honeyInput');
+const orderTable = document.getElementById('orderTable');
+const summaryOutput = document.getElementById('summaryOutput');
+const lastMenuDiv = document.getElementById('lastMenu');
+
+let orders = JSON.parse(localStorage.getItem('coffeeOrders')) || [];
+let memory = JSON.parse(localStorage.getItem('menuMemory')) || {};
+
+function todayStr(offset = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('th-TH');
+}
+
+function saveData() {
+  localStorage.setItem('coffeeOrders', JSON.stringify(orders));
+  localStorage.setItem('menuMemory', JSON.stringify(memory));
+}
+
+function updateNameList() {
+  const names = [...new Set(orders.map(o => o.name))];
+  nameList.innerHTML = names.map(n => `<option value="${n}">`).join('');
+}
+
+function showLastMenu() {
+  const name = nameInput.value.trim();
+  if (memory[name]) {
+    lastMenuDiv.innerHTML = `<b>เมนูประจำ:</b> ${memory[name]}`;
+    lastMenuDiv.style.display = 'block';
+  } else {
+    lastMenuDiv.style.display = 'none';
+  }
+}
+
+function addOrUpdateOrder() {
+  const name = nameInput.value.trim();
+  if (!name) return;
+  const menu = menuInput.value;
+  const syrup = syrupInput.value;
+  const honey = honeyInput.value;
+  const mixParts = [];
+  if (syrup) mixParts.push(`ไซรัป ${syrup}`);
+  if (honey) mixParts.push(`น้ำผึ้ง ${honey}`);
+  const mix = mixParts.join(", ");
+  const detail = `${menu}${mix ? " + " + mix : ""}`;
+
+  const existing = orders.findIndex(o => o.name === name && o.date === todayStr());
+  if (existing >= 0) orders[existing] = { name, menu, mix, date: todayStr() };
+  else orders.push({ name, menu, mix, date: todayStr() });
+
+  memory[name] = detail;
+  saveData();
+  renderOrders();
+}
+
+function renderOrders() {
+  orderTable.innerHTML = '';
+  orders.filter(o => o.date === todayStr()).forEach((o, i) => {
+    orderTable.innerHTML += `<tr>
+      <td>${o.name}</td>
+      <td>${o.menu}</td>
+      <td>${o.mix}</td>
+      <td><button onclick="editOrder(${i})">แก้ไข</button></td>
+    </tr>`;
+  });
+  summarizeOrders();
+  updateNameList();
+}
+
+function summarizeOrders() {
+  const summary = {};
+  orders.filter(o => o.date === todayStr()).forEach(o => {
+    const key = `${o.menu}${o.mix ? " + " + o.mix : ""}`;
+    summary[key] = (summary[key] || 0) + 1;
+  });
+  let html = "<ul>";
+  for (let key in summary) html += `<li>${key} = ${summary[key]} แก้ว</li>`;
+  html += "</ul>";
+  summaryOutput.innerHTML = html;
+}
+
+function editOrder(index) {
+  const o = orders[index];
+  nameInput.value = o.name;
+  menuInput.value = o.menu;
+  syrupInput.value = o.mix.includes("ไซรัป") ? o.mix.match(/ไซรัป (\d+)/)?.[1] : "";
+  honeyInput.value = o.mix.includes("น้ำผึ้ง") ? o.mix.match(/น้ำผึ้ง (\d+)/)?.[1] : "";
+  showLastMenu();
+}
+
+function clearOrders() {
+  if (confirm("ต้องการล้างทั้งหมด?")) {
+    orders = [];
+    saveData();
+    renderOrders();
+  }
+}
+
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text("สรุปออเดอร์กาแฟ", 10, 15);
+  let y = 25;
+  orders.filter(o => o.date === todayStr()).forEach((o, index) => {
+    doc.setFontSize(12);
+    doc.text(`${index + 1}. ${o.name} - ${o.menu}${o.mix ? " + " + o.mix : ""}`, 10, y);
+    y += 10;
+  });
+  doc.save(`Order-${todayStr()}.pdf`);
+}
+
+function copyYesterday() {
+  const yesterdayOrders = orders.filter(o => o.date === todayStr(-1));
+  if (yesterdayOrders.length === 0) return alert("ไม่มีออเดอร์เมื่อวาน");
+  const toCopy = yesterdayOrders.filter(o => confirm(`คัดลอกออเดอร์ ${o.name} ?`));
+  toCopy.forEach(o => {
+    if (!orders.some(t => t.name === o.name && t.date === todayStr())) {
+      orders.push({ ...o, date: todayStr() });
+    }
+  });
+  saveData();
+  renderOrders();
+}
+
+// ลงทะเบียน Service Worker สำหรับ PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker registered.', reg))
+      .catch(err => console.log('Service Worker registration failed:', err));
+  });
+}
+
+[nameInput, menuInput, syrupInput, honeyInput].forEach(el =>
+  el.addEventListener('change', () => {
+    addOrUpdateOrder();
+    showLastMenu();
+  })
+);
+
+window.onload = () => {
+  renderOrders();
+  updateNameList();
+};
+</script>
+
+</body>
+</html>
