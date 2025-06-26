@@ -1,17 +1,15 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Coffee House</title>
+<title>Coffee Order System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <!-- PWA Manifest -->
 <link rel="manifest" href="manifest.json" />
-<!-- Favicon / Icon -->
 <link rel="shortcut icon" href="icon-192.png" type="image/png" />
 <meta name="theme-color" content="#6b4f2d" />
 
-<!-- jsPDF CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -19,7 +17,7 @@
   h2 { background: #6b4f2d; color: #fff; padding: 10px; border-radius: 8px; text-align: center; }
   label { margin-top: 10px; display: block; }
   input, select { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #ccc; }
-  button { background: #6b4f2d; color: white; padding: 10px 20px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; }
+  button { background: #6b4f2d; color: white; padding: 8px 15px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; }
   button:hover { background: #543c22; }
   table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
   th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
@@ -29,59 +27,60 @@
 </head>
 <body>
 
-<h2>☕ Coffee House</h2>
+<h2>☕ Coffee Order System</h2>
 
-<label>Name:</label>
-<input id="nameInput" type="text" list="nameList" placeholder="เริ่มพิมพ์ชื่อ..." autocomplete="off" />
+<label>Customer Name:</label>
+<input id="nameInput" type="text" list="nameList" placeholder="Start typing name..." autocomplete="off" />
 <datalist id="nameList"></datalist>
 <div id="lastMenu"></div>
 
-<label>Order:</label>
+<label>Coffee Menu:</label>
 <select id="menuInput">
   <option>A5</option>
   <option>A4.5</option>
   <option>A5+A4.5</option>
-  <option>มัจฉะลาเต้</option>
-  <option>เพียวมัจฉะ</option>
+  <option>Matcha Latte</option>
+  <option>Pure Matcha</option>
   <option>Cold Brew</option>
 </select>
 
-<label>Syrup (G):</label>
+<label>Syrup (grams):</label>
 <select id="syrupInput">
-  <option value="">-- No --</option>
+  <option value="">-- None --</option>
   <option>5</option>
   <option>10</option>
   <option>15</option>
   <option>20</option>
 </select>
 
-<label>Honey (G):</label>
+<label>Honey (grams):</label>
 <select id="honeyInput">
-  <option value="">-- No --</option>
+  <option value="">-- None --</option>
   <option>5</option>
   <option>10</option>
   <option>15</option>
   <option>20</option>
 </select>
 
-<button onclick="copyYesterday()">📅 Copy last order</button>
+<button onclick="copyYesterday()">📅 Copy Yesterday's Orders</button>
 <button onclick="exportPDF()">📤 Export PDF</button>
-<button onclick="clearOrders()">🗑️ clear</button>
+<button onclick="clearOrders()">🗑️ Clear All Orders</button>
 
-<h3>📋 Detail Order</h3>
+<h3>📋 Order List</h3>
 <table>
 <thead>
 <tr>
   <th>Name</th>
-  <th>order</th>
-  <th>Fill</th>
+  <th>Menu</th>
+  <th>Ingredients</th>
   <th>Edit</th>
+  <th>Delete</th>
 </tr>
 </thead>
 <tbody id="orderTable"></tbody>
 </table>
 
-<h3>📊 summary order</h3>
+<h3>📊 Summary</h3>
 <div id="summaryOutput"></div>
 
 <script>
@@ -100,7 +99,7 @@ let memory = JSON.parse(localStorage.getItem('menuMemory')) || {};
 function todayStr(offset = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString('th-TH');
+  return d.toLocaleDateString('en-GB'); // Format dd/mm/yyyy
 }
 
 function saveData() {
@@ -116,7 +115,7 @@ function updateNameList() {
 function showLastMenu() {
   const name = nameInput.value.trim();
   if (memory[name]) {
-    lastMenuDiv.innerHTML = `<b>เมนูประจำ:</b> ${memory[name]}`;
+    lastMenuDiv.innerHTML = `<b>Favorite menu:</b> ${memory[name]}`;
     lastMenuDiv.style.display = 'block';
   } else {
     lastMenuDiv.style.display = 'none';
@@ -130,8 +129,8 @@ function addOrUpdateOrder() {
   const syrup = syrupInput.value;
   const honey = honeyInput.value;
   const mixParts = [];
-  if (syrup) mixParts.push(`ไซรัป ${syrup}`);
-  if (honey) mixParts.push(`น้ำผึ้ง ${honey}`);
+  if (syrup) mixParts.push(`Syrup ${syrup}g`);
+  if (honey) mixParts.push(`Honey ${honey}g`);
   const mix = mixParts.join(", ");
   const detail = `${menu}${mix ? " + " + mix : ""}`;
 
@@ -147,15 +146,25 @@ function addOrUpdateOrder() {
 function renderOrders() {
   orderTable.innerHTML = '';
   orders.filter(o => o.date === todayStr()).forEach((o, i) => {
-    orderTable.innerHTML += `<tr>
-      <td>${o.name}</td>
-      <td>${o.menu}</td>
-      <td>${o.mix}</td>
-      <td><button onclick="editOrder(${i})">Edit</button></td>
-    </tr>`;
+    orderTable.innerHTML += `
+      <tr>
+        <td>${o.name}</td>
+        <td>${o.menu}</td>
+        <td>${o.mix}</td>
+        <td><button onclick="editOrder(${i})">Edit</button></td>
+        <td><button onclick="deleteOrder(${i})" style="background:#c0392b;">Delete</button></td>
+      </tr>`;
   });
   summarizeOrders();
   updateNameList();
+}
+
+function deleteOrder(index) {
+  if(confirm(`Delete order for ${orders[index].name}?`)){
+    orders.splice(index, 1);
+    saveData();
+    renderOrders();
+  }
 }
 
 function summarizeOrders() {
@@ -165,7 +174,7 @@ function summarizeOrders() {
     summary[key] = (summary[key] || 0) + 1;
   });
   let html = "<ul>";
-  for (let key in summary) html += `<li>${key} = ${summary[key]} แก้ว</li>`;
+  for (let key in summary) html += `<li>${key} = ${summary[key]} cup${summary[key] > 1 ? 's' : ''}</li>`;
   html += "</ul>";
   summaryOutput.innerHTML = html;
 }
@@ -174,13 +183,13 @@ function editOrder(index) {
   const o = orders[index];
   nameInput.value = o.name;
   menuInput.value = o.menu;
-  syrupInput.value = o.mix.includes("ไซรัป") ? o.mix.match(/ไซรัป (\d+)/)?.[1] : "";
-  honeyInput.value = o.mix.includes("น้ำผึ้ง") ? o.mix.match(/น้ำผึ้ง (\d+)/)?.[1] : "";
+  syrupInput.value = o.mix.includes("Syrup") ? o.mix.match(/Syrup (\d+)/)?.[1] : "";
+  honeyInput.value = o.mix.includes("Honey") ? o.mix.match(/Honey (\d+)/)?.[1] : "";
   showLastMenu();
 }
 
 function clearOrders() {
-  if (confirm("ต้องการclear?")) {
+  if (confirm("Are you sure you want to clear all orders?")) {
     orders = [];
     saveData();
     renderOrders();
@@ -191,7 +200,7 @@ function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFontSize(16);
-  doc.text("สรุปออเดอร์กาแฟ", 10, 15);
+  doc.text("Coffee Order Summary", 10, 15);
   let y = 25;
   orders.filter(o => o.date === todayStr()).forEach((o, index) => {
     doc.setFontSize(12);
@@ -203,8 +212,8 @@ function exportPDF() {
 
 function copyYesterday() {
   const yesterdayOrders = orders.filter(o => o.date === todayStr(-1));
-  if (yesterdayOrders.length === 0) return alert("ไม่มีออเดอร์เมื่อวาน");
-  const toCopy = yesterdayOrders.filter(o => confirm(`คัดลอกออเดอร์ ${o.name} ?`));
+  if (yesterdayOrders.length === 0) return alert("No orders from yesterday.");
+  const toCopy = yesterdayOrders.filter(o => confirm(`Copy order for ${o.name}?`));
   toCopy.forEach(o => {
     if (!orders.some(t => t.name === o.name && t.date === todayStr())) {
       orders.push({ ...o, date: todayStr() });
@@ -214,7 +223,6 @@ function copyYesterday() {
   renderOrders();
 }
 
-// ลงทะเบียน Service Worker สำหรับ PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
