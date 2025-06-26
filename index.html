@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Coffee Order System</title>
+<title>Coffee House</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <!-- PWA Manifest -->
@@ -27,7 +27,7 @@
 </head>
 <body>
 
-<h2>☕ Coffee Order System</h2>
+<h2>☕ Coffee House</h2>
 
 <label>Customer Name:</label>
 <input id="nameInput" type="text" list="nameList" placeholder="Start typing name..." autocomplete="off" />
@@ -199,14 +199,55 @@ function clearOrders() {
 function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFontSize(16);
-  doc.text("Coffee Order Summary", 10, 15);
-  let y = 25;
-  orders.filter(o => o.date === todayStr()).forEach((o, index) => {
-    doc.setFontSize(12);
-    doc.text(`${index + 1}. ${o.name} - ${o.menu}${o.mix ? " + " + o.mix : ""}`, 10, y);
+  doc.setFontSize(18);
+  doc.text("Coffee House", 10, 15);
+
+  doc.setFontSize(14);
+  doc.text("Order List:", 10, 25);
+
+  let y = 35;
+  const todayOrders = orders.filter(o => o.date === todayStr());
+  if (todayOrders.length === 0) {
+    doc.text("No orders today.", 10, y);
     y += 10;
+  } else {
+    todayOrders.forEach((o, index) => {
+      doc.setFontSize(12);
+      doc.text(`${index + 1}. ${o.name} - ${o.menu}${o.mix ? " + " + o.mix : ""}`, 10, y);
+      y += 8;
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+  }
+
+  y += 10;
+  doc.setFontSize(14);
+  doc.text("Summary:", 10, y);
+  y += 10;
+
+  const summary = {};
+  todayOrders.forEach(o => {
+    const key = `${o.menu}${o.mix ? " + " + o.mix : ""}`;
+    summary[key] = (summary[key] || 0) + 1;
   });
+
+  if (Object.keys(summary).length === 0) {
+    doc.setFontSize(12);
+    doc.text("No summary data.", 10, y);
+  } else {
+    for (let key in summary) {
+      doc.setFontSize(12);
+      doc.text(`${key} = ${summary[key]} cup${summary[key] > 1 ? "s" : ""}`, 10, y);
+      y += 8;
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+    }
+  }
+
   doc.save(`Order-${todayStr()}.pdf`);
 }
 
