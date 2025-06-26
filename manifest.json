@@ -1,6 +1,6 @@
 {
-  "name": "Coffee House",
-  "short_name": "ออเดอร์กาแฟ",
+  "name": "Coffee Order System",
+  "short_name": "CoffeeOrder",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f0f0f0",
